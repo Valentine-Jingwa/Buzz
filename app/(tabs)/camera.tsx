@@ -1,15 +1,25 @@
-import { Camera, CameraType, FlashMode, useCameraPermissions } from 'expo-camera';
-import type { Camera as CameraTypeInstance } from 'expo-camera'; // Correct type import
 import { useRef, useState } from 'react';
-import { Button, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Slider from '@react-native-community/slider'; // Correct slider import
+import {
+  View,
+  Text,
+  StyleSheet,
+  Button,
+  TouchableOpacity,
+} from 'react-native';
+import Slider from '@react-native-community/slider';
+
+import { Camera as ExpoCamera, useCameraPermissions } from 'expo-camera';
+import type { Camera as CameraTypeInstance } from 'expo-camera';
+import { CameraType, FlashMode } from 'expo-camera/build/Camera.types';
 
 export default function CameraScreen() {
-  const [facing, setFacing] = useState<CameraType>('back');
-  const [flash, setFlash] = useState<FlashMode>('off');
+  const [facing, setFacing] = useState<CameraType>('back' as CameraType);
+  const [flash, setFlash] = useState<FlashMode>('off' as FlashMode);
   const [zoom, setZoom] = useState(0);
+  const [isRecording, setIsRecording] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
-  const cameraRef = useRef<CameraTypeInstance>(null); // Corrected useRef type
+
+  const cameraRef = useRef<CameraTypeInstance>(null);
 
   if (!permission) {
     return <View />;
@@ -25,38 +35,58 @@ export default function CameraScreen() {
   }
 
   function toggleCameraFacing() {
-    setFacing((current) => (current === 'back' ? 'front' : 'back'));
+    setFacing((current) =>
+      current === 'back' ? ('front' as CameraType) : ('back' as CameraType)
+    );
   }
 
   function toggleFlash() {
-    setFlash((current) => (current === 'off' ? 'torch' : 'off'));
+    setFlash((current) =>
+      current === 'off' ? ('torch' as FlashMode) : ('off' as FlashMode)
+    );
   }
 
   async function takePhoto() {
-    if (cameraRef.current) {
-      const photo = await cameraRef.current.takePictureAsync();
-      console.log('Photo URI:', photo.uri);
-      // TODO: Handle/display photo
+    try {
+      if (cameraRef.current) {
+        const photo = await cameraRef.current.takePictureAsync();
+        console.log('Photo URI:', photo.uri);
+        // TODO: Handle/display photo
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
     }
   }
 
   async function startVideoRecording() {
-    if (cameraRef.current) {
-      const video = await cameraRef.current.recordAsync();
-      console.log('Video URI:', video.uri);
-      // TODO: Handle/display video
+    try {
+      if (cameraRef.current && !isRecording) {
+        setIsRecording(true);
+        const video = await cameraRef.current.recordAsync();
+        console.log('Video URI:', video.uri);
+        // TODO: Handle/display video
+        setIsRecording(false);
+      }
+    } catch (error) {
+      console.error('Error recording video:', error);
+      setIsRecording(false);
     }
   }
 
   async function stopVideoRecording() {
-    if (cameraRef.current) {
-      cameraRef.current.stopRecording();
+    try {
+      if (cameraRef.current && isRecording) {
+        await cameraRef.current.stopRecording();
+        setIsRecording(false);
+      }
+    } catch (error) {
+      console.error('Error stopping recording:', error);
     }
   }
 
   return (
     <View style={styles.container}>
-      <Camera
+      <ExpoCamera
         ref={cameraRef}
         style={styles.camera}
         type={facing}
@@ -81,12 +111,13 @@ export default function CameraScreen() {
               <Text style={styles.text}>Snap</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.button} onPress={startVideoRecording}>
-              <Text style={styles.text}>Record</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.button} onPress={stopVideoRecording}>
-              <Text style={styles.text}>Stop</Text>
+            <TouchableOpacity
+              style={[styles.button, isRecording && styles.recording]}
+              onPress={isRecording ? stopVideoRecording : startVideoRecording}
+            >
+              <Text style={styles.text}>
+                {isRecording ? 'Stop' : 'Record'}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -103,7 +134,7 @@ export default function CameraScreen() {
             />
           </View>
         </View>
-      </Camera>
+      </ExpoCamera>
     </View>
   );
 }
@@ -143,8 +174,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#00000080',
     borderRadius: 10,
   },
+  recording: {
+    backgroundColor: 'red',
+  },
   text: {
     fontSize: 16,
     color: 'white',
   },
 });
+ 
